@@ -1,85 +1,118 @@
-This repository accompanies the [Amazon MSK migration lab](https://amazonmsk-labs.workshop.aws/en/migration.html). 
-It includes resources used in the lab including AWS CloudFormation templates, configuration files and Java code.
+# 🚀 MirrorMaker2 + AWS MSK Migration Lab — Learning Edition
 
+> **A complete, hands-on repo for mastering Apache Kafka migrations to Amazon MSK with MirrorMaker2. Build, test, and understand real-world streaming data migration!**
 
-## Install
+---
 
-### Clone the repository and install the jar file.  
+## 🌟 What is This Project?
 
-    mvn clean install -f pom.xml
-      
-Two java jar files will be created:
+This repository is your practical playground for learning:
+- How to migrate from a self-managed Apache Kafka cluster to Amazon MSK
+- How to use **Kafka MirrorMaker2 (MM2)** for topic, config, and ACL replication
+- How to keep consumer group offsets in sync across clusters
+- How to customize replication policy for seamless topic migration
 
-#### CustomMM2ReplicationPolicy
+All resources are designed to accompany the [Amazon MSK migration lab](https://amazonmsk-labs.workshop.aws/en/migration.html), but you can use them standalone to build your streaming data and AWS skills.
 
-This jar file is related to the use of [Kafka MirrorMaker2](https://cwiki.apache.org/confluence/display/KAFKA/KIP-382%3A+MirrorMaker+2.0) in the lab to migrate a self-managed Apache Kafka cluster 
-to [Amazon MSK](https://aws.amazon.com/msk/). 
+---
 
-MirrorMaker v2 (MM2), which ships as part of Apache Kafka in version 2.4.0 and above, detects and 
-replicates topics, topic partitions, topic configurations and topic ACLs to the destination cluster that matches a regex topic pattern. 
-Further, it checks for new topics that matches the topic pattern or changes to configurations and ACLs at regular configurable intervals. 
-The topic pattern can also be dynamically changed by changing the configuration of the MirrorSourceConnector. 
-Therefore MM2 can be used to migrate topics and topic data to the destination cluster and keep them in sync.
-                   
-In order to differentiate topics between the source and destination, MM2 utilizes a **ReplicationPolicy**. 
-The **DefaultReplicationPolicy** implementation uses a **\<source-cluster-alias\>.\<topic\>** naming convention as described 
-in [KIP-382](https://cwiki.apachorg/confluence/display/KAFKA/KIP-382%3A+MirrorMaker+2.0#KIP-382:MirrorMaker2.0-RemoteTopics,Partitions).The consumer, 
-when it starts up will subscribe to the replicated topic based on the topic pattern specified which should account for 
-both the source topic and the replicated topic names. This behavior is designed to account for use cases which need to run multiple 
-Apache Kafka clusters and keep them in sync for High Availability/Disaster Recovery and prevent circular replication of topics.
+## 🗂️ What's in the Repo?
 
-In migration scenarios, it might be useful to have the same topic names in the destination as the source as there is no 
-failback requirement and the replication is only way from the self-managed Apache Kafka cluster to Amazon MSK. 
-In order to enable that, the DefaultReplicationPolicy needs to be replaced with a CustomReplicationPolicy which would 
-maintain the same topic name at the destination. This jar file needs to be copied into the **libs** directory of the 
-Apache Kafka installation running MM2.
-
-#### MM2GroupOffsetSync
-
-When replicating messages in topics between clusters, the offsets in topic partitions could be different 
-due to producer retries or more likely due to the fact that the retention period in the source topic could've passed 
-and messages in the source topic already deleted when replication starts. Even if the the __consumer_offsets topic is replicated, 
-the consumers, on failover, might not find the offsets at the destination.
-
-MM2 provides a facility that keeps source and destination offsets in sync. The MM2 MirrorCheckpointConnector periodically 
-emits checkpoints in the destination cluster, containing offsets for each consumer group in the source cluster. 
-The connector periodically queries the source cluster for all committed offsets from all consumer groups, filters for 
-topics being replicated, and emits a message to a topic like \<source-cluster-alias\>.checkpoints.internal in the destination cluster. 
-These offsets can then be queried and retrieved by using provided classes **RemoteClusterUtils** or **MirrorClient**. However, 
-in order for consumers to fail over seamlessly and start consuming from where they left off with no code changes, 
-the mapped offsets at the destination need to be synced with the __consumer_offsets topic at the destination. The 
-MM2GroupOffsetSync application performs this syncing periodically and checks to make sure that the consumer group is empty or dead 
-before doing the sync to make sure that the offsets are not overwritten if the consumer had failed over.
-
-The jar file accepts the following parameters:  
-
-* **-h (or --help): help to get list of parameters**
-* **-cgi (or --consumerGroupID) (Default mm2TestConsumer1)**: The Consumer Group ID of the consumer to sync offsets for.
-* **-src (or --sourceCluster) (Default msksource)**: The alias of the source cluster specified in the MM2 configuration.
-* **-pfp (or --propertiesFilePath) (Default /tmp/kafka/consumer.properties)**: Location of the producer properties file which contains information about the Apache Kafka bootstrap brokers and the location of the Confluent Schema Registry.
-* **-mtls (or --mTLSEnable)(Default false)**: Enable TLS communication between this application and Amazon MSK Apache Kafka brokers for in-transit encryption and TLS mutual authentication. If this parameter is specified, TLS is also enabled. This reads the specified properties file for SSL_TRUSTSTORE_LOCATION_CONFIG, SSL_KEYSTORE_LOCATION_CONFIG, SSL_KEYSTORE_PASSWORD_CONFIG and SSL_KEY_PASSWORD_CONFIG. Those properties need to be specified in the properties file.
-* **-ssl (or --sslEnable)(Default /tmp/kafka.client.keystore.jks)**: Enable TLS communication between this application and Amazon MSK Apache Kafka brokers for in-transit encryption.
-* **-rpc (or --replicationPolicyClass)(Default DefaultReplicationPolicy)**: The class name of the replication policy to use. Works with the custom replication policy mentioned above.
-* **-rps (or --replicationPolicySeparator)(Default ".")**: The separator to use with the DefaultReplicationPolicy between the source cluster alias and the topic name.
-* **-int (or --interval)(Default 20)**: The interval in seconds between syncs.
-* **-rf (or --runFor) (Optional)**: Number of seconds to run the producer for.
-     
-## Usage Examples
-
-### To get the list of parameters
-
+```plaintext
+README.md                       # This learning guide
+CFTemplates/                    # AWS CloudFormation templates for infrastructure
+Configuration/                  # Kafka & MM2 configuration files
+CustomMM2ReplicationPolicy/     # Custom Java code for replication policy
+MM2GroupOffsetSync/             # Java code for syncing consumer group offsets
+pom.xml                         # Build and dependency management for Java apps
+LICENSE, CODE_OF_CONDUCT.md, CONTRIBUTING.md
 ```
+👉 [Browse all files in GitHub](https://github.com/saifeezibrahim/mirrormaker2-msk-migration-master/tree/main)
+
+---
+
+## 🏗️ Lab Structure
+
+- **CustomMM2ReplicationPolicy**  
+  Java implementation that allows you to replicate topics to MSK **without** changing their names (overriding default behavior).  
+  _Learn how to customize MirrorMaker2 for your migration needs!_
+
+- **MM2GroupOffsetSync**  
+  Tool to sync consumer offsets from source to destination for seamless failover.  
+  _Practice running offset syncs and understand consumer group behavior during migration._
+
+- **CloudFormation Templates**  
+  Fast-track your infrastructure setup for labs or production alike.
+
+---
+
+## 🚦 Quick Start: Build & Run
+
+### 1. **Clone and Build Java Components**
+```bash
+git clone https://github.com/saifeezibrahim/mirrormaker2-msk-migration-master.git
+cd mirrormaker2-msk-migration-master
+mvn clean install -f pom.xml
+```
+_JARs will be built for CustomMM2ReplicationPolicy and MM2GroupOffsetSync._
+
+### 2. **Use in Your Migration Lab**
+
+#### Run MM2GroupOffsetSync with Help
+```bash
 java -jar MM2GroupOffsetSync-1.0-SNAPSHOT.jar -h
 ```
 
-### Using a custom ReplicationPolicy
+#### Example: Using a Custom Replication Policy
+```bash
+java -jar MM2GroupOffsetSync-1.0-SNAPSHOT.jar \
+  -cgi mm2TestConsumer1 \
+  -src msksource \
+  -pfp /tmp/kafka/consumer.properties_sync_dest \
+  -mtls \
+  -rpc com.amazonaws.kafka.samples.CustomMM2ReplicationPolicy
+```
 
-```
-java -jar MM2GroupOffsetSync-1.0-SNAPSHOT.jar -cgi mm2TestConsumer1 -src msksource -pfp /tmp/kafka/consumer.properties_sync_dest -mtls -rpc com.amazonaws.kafka.samples.CustomMM2ReplicationPolicy
+#### Example: Using the Default Replication Policy
+```bash
+java -jar MM2GroupOffsetSync-1.0-SNAPSHOT.jar \
+  -cgi mm2TestConsumer1 \
+  -src msksource \
+  -pfp /tmp/kafka/consumer.properties_sync_dest \
+  -mtls
 ```
 
-### Using the DefaultReplicationPolicy
+---
 
-```
-java -jar MM2GroupOffsetSync-1.0-SNAPSHOT.jar -cgi mm2TestConsumer1 -src msksource -pfp /tmp/kafka/consumer.properties_sync_dest -mtls
-```
+## 🧑‍💻 What You'll Learn
+
+- How MirrorMaker2 replicates topics, configs, and ACLs between clusters
+- The role of **ReplicationPolicy** and how customizing it supports migration or DR
+- How to keep consumer group offsets in sync for smooth failovers
+- Best practices for Kafka-to-MSK migrations (with or without topic renaming)
+
+---
+
+## 💡 Tips for Learners
+
+- Study the code in `CustomMM2ReplicationPolicy/` to see how to override Kafka replication behavior.
+- Try modifying topic patterns and observe the effect on replication.
+- Use the CloudFormation templates to quickly create lab infrastructure in AWS.
+- Experiment with breaking and fixing syncs to understand failure scenarios.
+
+---
+
+## 🙋‍♂️ Maintained by Saifee Ibrahim
+
+Questions? Ideas? Found this helpful?  
+⭐ Star the repo, open issues, or contribute — this lab is built for hands-on AWS and Kafka learning!
+
+---
+
+## 📄 License
+
+MIT — Free for learning and educational use.
+
+---
+
+> **Practice, experiment and master streaming migrations with MirrorMaker2 and AWS MSK!**
